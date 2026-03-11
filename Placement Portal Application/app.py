@@ -267,9 +267,9 @@ def register_routes(app: Flask) -> None:
 
         return render_template("auth/register_company.html", form=request.form)
 
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ──────────────────────────────────────────────
     # Admin
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ──────────────────────────────────────────────
     @app.route("/admin/dashboard")
     @login_required
     @role_required("admin")
@@ -530,9 +530,9 @@ def register_routes(app: Flask) -> None:
         )
         return render_template("admin/applications.html", applications=applications)
 
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ──────────────────────────────────────────────
     # Company
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ──────────────────────────────────────────────
     @app.route("/company/dashboard")
     @login_required
     @role_required("company")
@@ -757,6 +757,149 @@ def register_routes(app: Flask) -> None:
     def view_student_profile(student_id: int):
         student = StudentProfile.query.get_or_404(student_id)
         return render_template("company/student_profile.html", student=student)
+
+    # ──────────────────────────────────────────────
+    # Student
+    # ──────────────────────────────────────────────
+    @app.route("/student/dashboard")
+    @login_required
+    @role_required("student")
+    def student_dashboard():
+        user = get_current_user()
+        student = user.student_profile
+        applications = (
+            Application.query.filter_by(student_id=student.id)
+            .order_by(Application.applied_at.desc())
+            .all()
+        )
+        # Notifications: applications whose status changed (not 'applied')
+        notifications = [
+            app for app in applications if app.status != "applied"
+        ]
+        # Approved drives the student is eligible for
+        applied_job_ids = [a.job_id for a in applications]
+        approved_jobs = (
+            Job.query.filter(
+                Job.status == "approved",
+                Job.min_cgpa <= student.cgpa,
+                ~Job.id.in_(applied_job_ids) if applied_job_ids else True,
+            )
+            .order_by(Job.created_at.desc())
+            .limit(5)
+            .all()
+        )
+        return render_template(
+            "student/dashboard.html",
+            student=student,
+            applications=applications,
+            notifications=notifications,
+            approved_jobs=approved_jobs,
+        )
+
+    @app.route("/student/profile", methods=["GET", "POST"])
+    @login_required
+    @role_required("student")
+    def student_profile():
+        user = get_current_user()
+        student = user.student_profile
+
+        if request.method == "POST":
+            name = request.form.get("name", "").strip()
+            department = request.form.get("department", "").strip()
+            cgpa_raw = request.form.get("cgpa", "").strip()
+            graduation_year_raw = request.form.get("graduation_year", "").strip()
+            phone = request.form.get("phone", "").strip()
+            skills = request.form.get("skills", "").strip()
+
+            if not name or not department:
+                flash("Name and department are required.", "danger")
+                return render_template("student/profile.html", student=student, form=request.form)
+
+            try:
+                cgpa_val = float(cgpa_raw)
+                grad_year_val = int(graduation_year_raw)
+            except ValueError:
+                flash("Please enter valid numeric values for CGPA and graduation year.", "danger")
+                return render_template("student/profile.html", student=student, form=request.form)
+
+            if cgpa_val < 0 or cgpa_val > 10:
+                flash("CGPA must be between 0 and 10.", "danger")
+                return render_template("student/profile.html", student=student, form=request.form)
+
+            # Handle resume upload
+            resume_file = request.files.get("resume")
+            if resume_file and resume_file.filename and allowed_file(resume_file.filename):
+                safe_name = secure_filename(resume_file.filename)
+                resume_filename = f"{student.roll_number}_{safe_name}"
+                resume_file.save(str(UPLOAD_FOLDER / resume_filename))
+                student.resume_filename = resume_filename
+
+            student.name = name
+            student.department = department
+            student.cgpa = cgpa_val
+            student.graduation_year = grad_year_val
+            student.phone = phone or None
+            student.skills = skills or None
+            db.session.commit()
+
+            flash("Profile updated successfully.", "success")
+            return redirect(url_for("student_dashboard"))
+
+        return render_template("student/profile.html", student=student, form=request.form)
+
+    @app.route("/jobs")
+    @login_required
+    @role_required("student")
+    def list_jobs():
+        user = get_current_user()
+        student = user.student_profile
+        q = request.args.get("q", "").strip()
+        query = Job.query.filter(Job.status == "approved", Job.min_cgpa <= student.cgpa)
+        if q:
+            like = f"%{q}%"
+            query = query.filter(
+                db.or_(
+                    Job.title.ilike(like),
+                    Job.description.ilike(like),
+                    Job.company.has(CompanyProfile.name.ilike(like)),
+                )
+            )
+        jobs = query.order_by(Job.created_at.desc()).all()
+        return render_template("student/jobs.html", student=student, jobs=jobs, q=q)
+
+    @app.route("/jobs/<int:job_id>/apply", methods=["POST"])
+    @login_required
+    @role_required("student")
+    def apply_to_job(job_id: int):
+        user = get_current_user()
+        student = user.student_profile
+        job = Job.query.get_or_404(job_id)
+
+        if job.status != "approved":
+            flash("This job is not open for applications.", "warning")
+            return redirect(url_for("list_jobs"))
+
+        if student.cgpa < job.min_cgpa:
+            flash("You are not eligible for this job based on CGPA.", "danger")
+            return redirect(url_for("list_jobs"))
+
+        existing = Application.query.filter_by(job_id=job.id, student_id=student.id).first()
+        if existing:
+            flash("You have already applied for this job.", "info")
+            return redirect(url_for("list_jobs"))
+
+        application = Application(job_id=job.id, student_id=student.id, status="applied")
+        db.session.add(application)
+        db.session.commit()
+
+        flash("Application submitted successfully.", "success")
+        return redirect(url_for("student_dashboard"))
+
+    # Resume download
+    @app.route("/uploads/resumes/<filename>")
+    @login_required
+    def download_resume(filename):
+        return send_from_directory(str(UPLOAD_FOLDER), filename)
 
 
 app = create_app()

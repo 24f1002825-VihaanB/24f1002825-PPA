@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Browse Jobs · Placement Portal{% endblock %}
+
+{% block content %}
+<h1 class="h4 mb-4">Eligible Jobs</h1>
+
+<form method="get" class="row g-2 align-items-center mb-3">
+  <div class="col-sm-6 col-md-4">
+    <input type="text" name="q" class="form-control form-control-sm" placeholder="Search by job title or company name"
+      value="{{ q or '' }}">
+  </div>
+  <div class="col-sm-3 col-md-2">
+    <button type="submit" class="btn btn-sm btn-outline-primary w-100">Search</button>
+  </div>
+</form>
+
+<p class="text-muted small mb-4">
+  Showing jobs where your CGPA ({{ student.cgpa }}) meets the requirement.
+</p>
+
+{% if jobs %}
+<div class="row g-3">
+  {% for job in jobs %}
+  <div class="col-12">
+    <div class="card shadow-sm portal-card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h2 class="h5 mb-1">{{ job.title }}</h2>
+            <p class="text-muted small mb-2">
+              {{ job.company.name }}
+              {% if job.location %} · {{ job.location }}{% endif %}
+              {% if job.ctc %} · {{ job.ctc }}{% endif %}
+            </p>
+            {% if job.description %}
+            <p class="small mb-3">{{ job.description[:200] }}{% if job.description|length > 200 %}...{% endif %}</p>
+            {% endif %}
+            <span class="badge bg-secondary">Min CGPA: {{ job.min_cgpa }}</span>
+          </div>
+          <div>
+            <form method="post" action="{{ url_for('apply_to_job', job_id=job.id) }}" class="d-inline">
+              <button type="submit" class="btn btn-primary btn-sm">
+                Apply
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card shadow-sm portal-card">
+  <div class="card-body text-center py-5">
+    <p class="text-muted mb-0">No eligible jobs at the moment.</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

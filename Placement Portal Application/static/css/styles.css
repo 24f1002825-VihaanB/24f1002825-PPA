@@ -1,0 +1,67 @@
+/* Placement Portal – custom Bootstrap tweaks */
+:root {
+  --portal-nav-bg: #1a365d;
+  --portal-nav-hover: #2c5282;
+  --portal-hero-bg: #2d3748;
+  --portal-card-border: #e2e8f0;
+  --portal-footer-bg: #f7fafc;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+}
+
+.portal-navbar {
+  background-color: var(--portal-nav-bg) !important;
+}
+
+.portal-navbar .navbar-brand:hover {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.portal-navbar .nav-link {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.portal-navbar .nav-link:hover {
+  color: #fff !important;
+}
+
+.portal-hero {
+  background: linear-gradient(135deg, var(--portal-hero-bg) 0%, #1a202c 100%);
+  color: #fff;
+}
+
+.portal-hero .btn-outline-light:hover {
+  color: var(--portal-hero-bg);
+  background-color: #fff;
+}
+
+.portal-card {
+  border: 1px solid var(--portal-card-border);
+  border-radius: 0.5rem;
+}
+
+.portal-card-stat {
+  border: 1px solid var(--portal-card-border);
+  border-radius: 0.5rem;
+}
+
+.portal-card-stat .stat-value {
+  color: var(--portal-nav-bg);
+}
+
+.portal-footer {
+  background-color: var(--portal-footer-bg);
+  border-top: 1px solid var(--portal-card-border);
+}
+
+.flash-container .alert {
+  border-radius: 0.5rem;
+}

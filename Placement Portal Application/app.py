@@ -267,6 +267,269 @@ def register_routes(app: Flask) -> None:
 
         return render_template("auth/register_company.html", form=request.form)
 
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # Admin
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    @app.route("/admin/dashboard")
+    @login_required
+    @role_required("admin")
+    def admin_dashboard():
+        total_students = StudentProfile.query.count()
+        total_companies = CompanyProfile.query.count()
+        pending_companies = CompanyProfile.query.filter_by(approved=False).count()
+        total_jobs = Job.query.count()
+        total_applications = Application.query.count()
+
+        latest_jobs = Job.query.order_by(Job.created_at.desc()).limit(5).all()
+        pending_company_list = CompanyProfile.query.filter_by(approved=False, blacklisted=False).all()
+
+        return render_template(
+            "admin/dashboard.html",
+            total_students=total_students,
+            total_companies=total_companies,
+            pending_companies=pending_companies,
+            total_jobs=total_jobs,
+            total_applications=total_applications,
+            latest_jobs=latest_jobs,
+            pending_company_list=pending_company_list,
+        )
+
+    @app.route("/admin/companies")
+    @login_required
+    @role_required("admin")
+    def admin_companies():
+        q = request.args.get("q", "").strip()
+        query = CompanyProfile.query
+        if q:
+            like = f"%{q}%"
+            query = query.filter(
+                db.or_(
+                    CompanyProfile.name.ilike(like),
+                    CompanyProfile.contact_person.ilike(like),
+                    CompanyProfile.industry.ilike(like),
+                )
+            )
+        companies = query.order_by(CompanyProfile.approved.desc(), CompanyProfile.name).all()
+        return render_template("admin/companies.html", companies=companies, q=q)
+
+    @app.route("/admin/companies/<int:company_id>/approve", methods=["POST"])
+    @login_required
+    @role_required("admin")
+    def approve_company(company_id: int):
+        company = CompanyProfile.query.get_or_404(company_id)
+        company.approved = True
+        company.blacklisted = False
+        db.session.commit()
+        flash(f"{company.name} approved successfully.", "success")
+        return redirect(url_for("admin_companies"))
+
+    @app.route("/admin/companies/<int:company_id>/reject", methods=["POST"])
+    @login_required
+    @role_required("admin")
+    def reject_company(company_id: int):
+        company = CompanyProfile.query.get_or_404(company_id)
+        company.approved = False
+        company.blacklisted = False
+        db.session.commit()
+        flash(f"{company.name} registration has been rejected.", "warning")
+        return redirect(url_for("admin_companies"))
+
+    @app.route("/admin/companies/<int:company_id>/blacklist", methods=["POST"])
+    @login_required
+    @role_required("admin")
+    def blacklist_company(company_id: int):
+        company = CompanyProfile.query.get_or_404(company_id)
+        company.blacklisted = True
+        company.approved = False
+        db.session.commit()
+        flash(f"{company.name} has been blacklisted.", "warning")
+        return redirect(url_for("admin_companies"))
+
+    @app.route("/admin/companies/<int:company_id>/edit", methods=["GET", "POST"])
+    @login_required
+    @role_required("admin")
+    def admin_edit_company(company_id: int):
+        company = CompanyProfile.query.get_or_404(company_id)
+        if request.method == "POST":
+            name = request.form.get("name", "").strip()
+            website = request.form.get("website", "").strip()
+            contact_person = request.form.get("contact_person", "").strip()
+            contact_email = request.form.get("contact_email", "").strip()
+            industry = request.form.get("industry", "").strip()
+
+            if not name:
+                flash("Company name is required.", "danger")
+                return render_template("admin/edit_company.html", company=company, form=request.form)
+
+            other = CompanyProfile.query.filter(CompanyProfile.name == name, CompanyProfile.id != company.id).first()
+            if other:
+                flash("Another company is already registered with this name.", "danger")
+                return render_template("admin/edit_company.html", company=company, form=request.form)
+
+            company.name = name
+            company.website = website or None
+            company.contact_person = contact_person or None
+            company.contact_email = contact_email or None
+            company.industry = industry or None
+            db.session.commit()
+            flash(f"{company.name} updated successfully.", "success")
+            return redirect(url_for("admin_companies"))
+
+        return render_template("admin/edit_company.html", company=company, form=request.form)
+
+    @app.route("/admin/companies/<int:company_id>/delete", methods=["POST"])
+    @login_required
+    @role_required("admin")
+    def delete_company(company_id: int):
+        company = CompanyProfile.query.get_or_404(company_id)
+        user = company.user
+        # Delete all applications for all jobs of this company
+        for job in company.jobs.all():
+            Application.query.filter_by(job_id=job.id).delete()
+            db.session.delete(job)
+        db.session.delete(company)
+        if user:
+            db.session.delete(user)
+        db.session.commit()
+        flash("Company and all related data deleted.", "info")
+        return redirect(url_for("admin_companies"))
+
+    @app.route("/admin/students")
+    @login_required
+    @role_required("admin")
+    def admin_students():
+        q = request.args.get("q", "").strip()
+        query = StudentProfile.query
+        if q:
+            like = f"%{q}%"
+            query = query.filter(
+                db.or_(
+                    StudentProfile.name.ilike(like),
+                    StudentProfile.roll_number.ilike(like),
+                    StudentProfile.phone.ilike(like),
+                )
+            )
+        students = query.order_by(StudentProfile.roll_number).all()
+        return render_template("admin/students.html", students=students, q=q)
+
+    @app.route("/admin/students/<int:student_id>/blacklist", methods=["POST"])
+    @login_required
+    @role_required("admin")
+    def blacklist_student(student_id: int):
+        student = StudentProfile.query.get_or_404(student_id)
+        student.blacklisted = True
+        db.session.commit()
+        flash(f"Student {student.roll_number} has been blacklisted.", "warning")
+        return redirect(url_for("admin_students"))
+
+    @app.route("/admin/students/<int:student_id>/unblacklist", methods=["POST"])
+    @login_required
+    @role_required("admin")
+    def unblacklist_student(student_id: int):
+        student = StudentProfile.query.get_or_404(student_id)
+        student.blacklisted = False
+        db.session.commit()
+        flash(f"Student {student.roll_number} has been un-blacklisted.", "success")
+        return redirect(url_for("admin_students"))
+
+    @app.route("/admin/students/<int:student_id>/edit", methods=["GET", "POST"])
+    @login_required
+    @role_required("admin")
+    def admin_edit_student(student_id: int):
+        student = StudentProfile.query.get_or_404(student_id)
+        if request.method == "POST":
+            name = request.form.get("name", "").strip()
+            department = request.form.get("department", "").strip()
+            cgpa_raw = request.form.get("cgpa", "").strip()
+            graduation_year_raw = request.form.get("graduation_year", "").strip()
+            phone = request.form.get("phone", "").strip()
+            skills = request.form.get("skills", "").strip()
+
+            if not name or not department:
+                flash("Name and department are required.", "danger")
+                return render_template("admin/edit_student.html", student=student, form=request.form)
+
+            try:
+                cgpa_val = float(cgpa_raw)
+                grad_year_val = int(graduation_year_raw)
+            except ValueError:
+                flash("Please enter valid numeric values for CGPA and graduation year.", "danger")
+                return render_template("admin/edit_student.html", student=student, form=request.form)
+
+            student.name = name
+            student.department = department
+            student.cgpa = cgpa_val
+            student.graduation_year = grad_year_val
+            student.phone = phone or None
+            student.skills = skills or None
+            db.session.commit()
+            flash(f"Student {student.roll_number} updated successfully.", "success")
+            return redirect(url_for("admin_students"))
+
+        return render_template("admin/edit_student.html", student=student, form=request.form)
+
+    @app.route("/admin/students/<int:student_id>/delete", methods=["POST"])
+    @login_required
+    @role_required("admin")
+    def delete_student(student_id: int):
+        student = StudentProfile.query.get_or_404(student_id)
+        user = student.user
+        Application.query.filter_by(student_id=student.id).delete()
+        db.session.delete(student)
+        if user:
+            db.session.delete(user)
+        db.session.commit()
+        flash("Student deleted.", "info")
+        return redirect(url_for("admin_students"))
+
+    @app.route("/admin/drives")
+    @login_required
+    @role_required("admin")
+    def admin_drives():
+        jobs = Job.query.order_by(Job.created_at.desc()).all()
+        return render_template("admin/drives.html", jobs=jobs)
+
+    @app.route("/admin/drives/<int:job_id>/approve", methods=["POST"])
+    @login_required
+    @role_required("admin")
+    def approve_drive(job_id: int):
+        job = Job.query.get_or_404(job_id)
+        job.status = "approved"
+        db.session.commit()
+        flash("Placement drive approved.", "success")
+        return redirect(url_for("admin_drives"))
+
+    @app.route("/admin/drives/<int:job_id>/reject", methods=["POST"])
+    @login_required
+    @role_required("admin")
+    def reject_drive(job_id: int):
+        job = Job.query.get_or_404(job_id)
+        job.status = "rejected"
+        db.session.commit()
+        flash("Placement drive rejected.", "warning")
+        return redirect(url_for("admin_drives"))
+
+    @app.route("/admin/drives/<int:job_id>/close", methods=["POST"])
+    @login_required
+    @role_required("admin")
+    def close_drive(job_id: int):
+        job = Job.query.get_or_404(job_id)
+        job.status = "closed"
+        db.session.commit()
+        flash("Placement drive closed.", "info")
+        return redirect(url_for("admin_drives"))
+
+    @app.route("/admin/applications")
+    @login_required
+    @role_required("admin")
+    def admin_applications():
+        applications = (
+            Application.query
+            .order_by(Application.applied_at.desc())
+            .all()
+        )
+        return render_template("admin/applications.html", applications=applications)
+
 
 app = create_app()
 

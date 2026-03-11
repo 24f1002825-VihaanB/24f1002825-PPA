@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Student · Admin · Placement Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Edit Student – {{ student.roll_number }}</h1>
+    <a href="{{ url_for('admin_students') }}" class="btn btn-outline-secondary btn-sm">Back</a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card shadow-sm portal-card">
+            <div class="card-body p-4">
+                <form method="post">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Roll Number</label>
+                            <input type="text" class="form-control" value="{{ student.roll_number }}" disabled>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input type="text" class="form-control" value="{{ student.user.email }}" disabled>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="name" name="name" required
+                                value="{{ form.get('name', student.name) }}">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="department" class="form-label">Department</label>
+                            <input type="text" class="form-control" id="department" name="department" required
+                                value="{{ form.get('department', student.department) }}">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="cgpa" class="form-label">CGPA</label>
+                            <input type="number" step="0.01" min="0" max="10" class="form-control" id="cgpa" name="cgpa"
+                                required value="{{ form.get('cgpa', student.cgpa) }}">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="graduation_year" class="form-label">Graduation Year</label>
+                            <input type="number" class="form-control" id="graduation_year" name="graduation_year"
+                                required value="{{ form.get('graduation_year', student.graduation_year) }}">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="phone" class="form-label">Phone Number</label>
+                            <input type="tel" class="form-control" id="phone" name="phone"
+                                value="{{ form.get('phone', student.phone or '') }}">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="skills" class="form-label">Skills</label>
+                            <input type="text" class="form-control" id="skills" name="skills"
+                                value="{{ form.get('skills', student.skills or '') }}">
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

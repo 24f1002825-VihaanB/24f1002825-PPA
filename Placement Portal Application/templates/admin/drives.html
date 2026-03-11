@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Placement Drives · Admin · Placement Portal{% endblock %}
+
+{% block content %}
+<h1 class="h4 mb-4">Placement Drives</h1>
+
+<div class="card shadow-sm portal-card">
+  <div class="card-body">
+    {% if jobs %}
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Company</th>
+            <th>CTC</th>
+            <th>Min CGPA</th>
+            <th>Status</th>
+            <th>Deadline</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for job in jobs %}
+          <tr>
+            <td>{{ job.title }}</td>
+            <td class="text-muted small">{{ job.company.name }}</td>
+            <td class="text-muted small">{{ job.ctc or '—' }}</td>
+            <td>{{ job.min_cgpa }}</td>
+            <td>
+              {% if job.status == 'approved' %}
+              <span class="badge bg-success">Approved</span>
+              {% elif job.status == 'pending' %}
+              <span class="badge bg-warning text-dark">Pending</span>
+              {% elif job.status == 'rejected' %}
+              <span class="badge bg-danger">Rejected</span>
+              {% else %}
+              <span class="badge bg-secondary">Closed</span>
+              {% endif %}
+            </td>
+            <td class="text-muted small">
+              {% if job.application_deadline %}
+              {{ job.application_deadline.strftime('%d %b %Y') }}
+              {% else %}
+              —
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <form method="post" action="{{ url_for('approve_drive', job_id=job.id) }}" class="d-inline">
+                <button type="submit" class="btn btn-sm btn-success">
+                  Approve
+                </button>
+              </form>
+              <form method="post" action="{{ url_for('reject_drive', job_id=job.id) }}" class="d-inline ms-1">
+                <button type="submit" class="btn btn-sm btn-outline-warning">
+                  Reject
+                </button>
+              </form>
+              <form method="post" action="{{ url_for('close_drive', job_id=job.id) }}" class="d-inline ms-1">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                  Close
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted mb-0">No placement drives found.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

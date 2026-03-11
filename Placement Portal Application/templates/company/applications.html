@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Applicants · {{ job.title }} · Placement Portal{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('company_dashboard') }}">Dashboard</a></li>
+    <li class="breadcrumb-item active">{{ job.title }}</li>
+  </ol>
+</nav>
+
+<h1 class="h4 mb-4">Applicants for {{ job.title }}</h1>
+
+<div class="card shadow-sm portal-card mb-3">
+  <div class="card-body">
+    <p class="text-muted small mb-0">
+      {{ job.company.name }} · Min CGPA: {{ job.min_cgpa }} · {{ job.location or 'Location TBA' }}
+    </p>
+  </div>
+</div>
+
+{% if applications %}
+<div class="card shadow-sm portal-card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Student</th>
+            <th>Roll Number</th>
+            <th>Department</th>
+            <th>CGPA</th>
+            <th>Status</th>
+            <th>Applied</th>
+            <th>Profile</th>
+            <th class="text-end">Update Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for app in applications %}
+          <tr>
+            <td>{{ app.student.name }}</td>
+            <td>{{ app.student.roll_number }}</td>
+            <td class="text-muted small">{{ app.student.department }}</td>
+            <td>{{ app.student.cgpa }}</td>
+            <td>
+              <span
+                class="badge {% if app.status == 'applied' %}bg-primary{% elif app.status == 'shortlisted' %}bg-info{% elif app.status == 'interview' %}bg-primary{% elif app.status == 'selected' or app.status == 'placed' %}bg-success{% elif app.status == 'rejected' %}bg-danger{% else %}bg-secondary{% endif %}">
+                {{ app.status|capitalize }}
+              </span>
+            </td>
+            <td class="text-muted small">{{ app.applied_at.strftime('%d %b %Y') }}</td>
+            <td>
+              <a href="{{ url_for('view_student_profile', student_id=app.student.id) }}"
+                class="btn btn-outline-primary btn-sm">
+                View
+              </a>
+            </td>
+            <td class="text-end">
+              <form method="post" action="{{ url_for('update_application_status', application_id=app.id) }}"
+                class="d-inline">
+                <select name="status" class="form-select form-select-sm d-inline-block w-auto">
+                  <option value="applied" {% if app.status=='applied' %}selected{% endif %}>Applied</option>
+                  <option value="shortlisted" {% if app.status=='shortlisted' %}selected{% endif %}>Shortlisted</option>
+                  <option value="interview" {% if app.status=='interview' %}selected{% endif %}>Interview</option>
+                  <option value="selected" {% if app.status=='selected' %}selected{% endif %}>Selected</option>
+                  <option value="rejected" {% if app.status=='rejected' %}selected{% endif %}>Rejected</option>
+                  <option value="placed" {% if app.status=='placed' %}selected{% endif %}>Placed</option>
+                </select>
+                <button type="submit" class="btn btn-sm btn-outline-primary ms-1">Update</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="card shadow-sm portal-card">
+  <div class="card-body text-center py-5">
+    <p class="text-muted mb-0">No applications yet for this job.</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

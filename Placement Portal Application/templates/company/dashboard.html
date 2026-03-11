@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Company Dashboard · Placement Portal{% endblock %}
+
+{% block content %}
+<h1 class="h4 mb-4">Company Dashboard</h1>
+
+<div class="card shadow-sm portal-card mb-4">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start">
+      <div>
+        <h2 class="h5 mb-2">{{ company.name }}</h2>
+        <p class="text-muted small mb-2">
+          {% if company.website %}{{ company.website }}{% endif %}
+          {% if company.contact_person %} · {{ company.contact_person }}{% endif %}
+        </p>
+        {% if company.approved %}
+          <span class="badge bg-success">Approved</span>
+        {% else %}
+          <span class="badge bg-warning text-dark">Awaiting approval</span>
+          <p class="text-muted small mt-2 mb-0">You cannot post jobs until an admin approves your company.</p>
+        {% endif %}
+      </div>
+      <a href="{{ url_for('company_profile') }}" class="btn btn-outline-primary btn-sm">Update Profile</a>
+    </div>
+  </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="h5 mb-0">Your Jobs</h2>
+  {% if company.approved %}
+    <a href="{{ url_for('create_job') }}" class="btn btn-primary btn-sm">
+      Post New Job
+    </a>
+  {% endif %}
+</div>
+
+{% if jobs %}
+  <div class="card shadow-sm portal-card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Location</th>
+              <th>CTC</th>
+              <th>Min CGPA</th>
+              <th>Deadline</th>
+              <th>Status</th>
+              <th>Applications</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for job in jobs %}
+              <tr>
+                <td>{{ job.title }}</td>
+                <td class="text-muted small">{{ job.location or '—' }}</td>
+                <td class="text-muted small">{{ job.ctc or '—' }}</td>
+                <td>{{ job.min_cgpa }}</td>
+                <td class="text-muted small">
+                  {% if job.application_deadline %}
+                    {{ job.application_deadline.strftime('%d %b %Y') }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="badge {% if job.status == 'approved' %}bg-success{% elif job.status == 'pending' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                    {{ job.status|capitalize }}
+                  </span>
+                </td>
+                <td>{{ job.applications.count() }}</td>
+                <td class="text-end">
+                  <a href="{{ url_for('company_job_applications', job_id=job.id) }}" class="btn btn-outline-primary btn-sm">
+                    View Applicants
+                  </a>
+                  <a href="{{ url_for('edit_job', job_id=job.id) }}" class="btn btn-outline-secondary btn-sm ms-1">
+                    Edit
+                  </a>
+                  <form method="post" action="{{ url_for('close_job', job_id=job.id) }}" class="d-inline ms-1">
+                    <button type="submit" class="btn btn-outline-warning btn-sm">
+                      Close
+                    </button>
+                  </form>
+                  <form method="post" action="{{ url_for('delete_job', job_id=job.id) }}" class="d-inline ms-1">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                      Delete
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+{% else %}
+  <div class="card shadow-sm portal-card">
+    <div class="card-body text-center py-5">
+      <p class="text-muted mb-3">No jobs posted yet.</p>
+      {% if company.approved %}
+        <a href="{{ url_for('create_job') }}" class="btn btn-primary">
+          Post Your First Job
+        </a>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

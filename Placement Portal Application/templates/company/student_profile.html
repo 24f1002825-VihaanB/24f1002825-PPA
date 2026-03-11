@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Student Profile · Placement Portal{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('company_dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Student Profile</li>
+    </ol>
+</nav>
+
+<h1 class="h4 mb-4">{{ student.name }}</h1>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm portal-card">
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="mb-2">
+                            <span class="fw-semibold text-muted small">Roll Number</span>
+                            <div>{{ student.roll_number }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-2">
+                            <span class="fw-semibold text-muted small">Department</span>
+                            <div>{{ student.department }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-2">
+                            <span class="fw-semibold text-muted small">CGPA</span>
+                            <div>{{ student.cgpa }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-2">
+                            <span class="fw-semibold text-muted small">Graduation Year</span>
+                            <div>{{ student.graduation_year }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-2">
+                            <span class="fw-semibold text-muted small">Email</span>
+                            <div>{{ student.user.email }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-2">
+                            <span class="fw-semibold text-muted small">Phone</span>
+                            <div>{{ student.phone or '—' }}</div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="mb-2">
+                            <span class="fw-semibold text-muted small">Skills</span>
+                            <div>{{ student.skills or '—' }}</div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="mb-2">
+                            <span class="fw-semibold text-muted small">Resume</span>
+                            <div>
+                                {% if student.resume_filename %}
+                                <a href="{{ url_for('download_resume', filename=student.resume_filename) }}"
+                                    class="btn btn-outline-primary btn-sm">
+                                    Download Resume
+                                </a>
+                                {% else %}
+                                <span class="text-muted">No resume uploaded</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

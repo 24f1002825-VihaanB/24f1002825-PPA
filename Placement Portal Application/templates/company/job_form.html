@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Post Job · Placement Portal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card shadow-sm portal-card">
+      <div class="card-body p-4">
+        <h1 class="h4 mb-3">Create Placement Drive</h1>
+        <p class="text-muted small mb-4">
+          Title, CTC, and minimum CGPA are required. Students will see drives they qualify for.
+        </p>
+
+        <form method="post">
+          <div class="mb-3">
+            <label for="title" class="form-label">Job Title <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="title" name="title" required
+              value="{{ form.get('title', '') }}">
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="location" class="form-label">Location</label>
+              <input type="text" class="form-control" id="location" name="location"
+                value="{{ form.get('location', '') }}">
+            </div>
+            <div class="col-md-6">
+              <label for="ctc" class="form-label">CTC (e.g. 12 LPA) <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="ctc" name="ctc" required value="{{ form.get('ctc', '') }}">
+            </div>
+          </div>
+
+          <div class="row g-3 mt-3">
+            <div class="col-md-6">
+              <label for="min_cgpa" class="form-label">Minimum CGPA <span class="text-danger">*</span></label>
+              <input type="number" step="0.01" min="0" max="10" class="form-control" id="min_cgpa" name="min_cgpa"
+                required value="{{ form.get('min_cgpa', '') }}">
+            </div>
+            <div class="col-md-6">
+              <label for="application_deadline" class="form-label">Application Deadline</label>
+              <input type="date" class="form-control" id="application_deadline" name="application_deadline"
+                value="{{ form.get('application_deadline', '') }}">
+            </div>
+          </div>
+
+          <div class="mb-3 mt-3">
+            <label for="description" class="form-label">Description</label>
+            <textarea class="form-control" id="description" name="description"
+              rows="6">{{ form.get('description', '') }}</textarea>
+          </div>
+
+          <div class="d-flex justify-content-between">
+            <a href="{{ url_for('company_dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">Post Job</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -530,6 +530,234 @@ def register_routes(app: Flask) -> None:
         )
         return render_template("admin/applications.html", applications=applications)
 
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # Company
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    @app.route("/company/dashboard")
+    @login_required
+    @role_required("company")
+    def company_dashboard():
+        user = get_current_user()
+        company = user.company_profile
+        jobs = company.jobs.order_by(Job.created_at.desc()).all()
+        return render_template("company/dashboard.html", company=company, jobs=jobs)
+
+    @app.route("/company/profile", methods=["GET", "POST"])
+    @login_required
+    @role_required("company")
+    def company_profile():
+        user = get_current_user()
+        company = user.company_profile
+
+        if request.method == "POST":
+            name = request.form.get("name", "").strip()
+            website = request.form.get("website", "").strip()
+            contact_person = request.form.get("contact_person", "").strip()
+            contact_email = request.form.get("contact_email", "").strip()
+            industry = request.form.get("industry", "").strip()
+
+            if not name:
+                flash("Company name is required.", "danger")
+                return render_template("company/profile.html", company=company, form=request.form)
+
+            other = CompanyProfile.query.filter(CompanyProfile.name == name, CompanyProfile.id != company.id).first()
+            if other:
+                flash("Another company is already registered with this name.", "danger")
+                return render_template("company/profile.html", company=company, form=request.form)
+
+            company.name = name
+            company.website = website or None
+            company.contact_person = contact_person or None
+            company.contact_email = contact_email or None
+            company.industry = industry or None
+            db.session.commit()
+
+            flash("Company profile updated successfully.", "success")
+            return redirect(url_for("company_dashboard"))
+
+        return render_template("company/profile.html", company=company, form=request.form)
+
+    @app.route("/company/jobs/new", methods=["GET", "POST"])
+    @login_required
+    @role_required("company")
+    def create_job():
+        user = get_current_user()
+        company = user.company_profile
+        if not company.approved:
+            flash("Your company is not yet approved by admin.", "warning")
+            return redirect(url_for("company_dashboard"))
+
+        if request.method == "POST":
+            title = request.form.get("title", "").strip()
+            location = request.form.get("location", "").strip()
+            ctc = request.form.get("ctc", "").strip()
+            description = request.form.get("description", "").strip()
+            min_cgpa = request.form.get("min_cgpa", "").strip()
+            deadline_raw = request.form.get("application_deadline", "").strip()
+
+            if not title:
+                flash("Job title is required.", "danger")
+                return render_template("company/job_form.html", form=request.form)
+            if not ctc:
+                flash("CTC is required.", "danger")
+                return render_template("company/job_form.html", form=request.form)
+
+            try:
+                min_cgpa_val = float(min_cgpa)
+            except ValueError:
+                flash("Please enter a valid minimum CGPA.", "danger")
+                return render_template("company/job_form.html", form=request.form)
+
+            deadline_value = None
+            if deadline_raw:
+                try:
+                    deadline_value = datetime.strptime(deadline_raw, "%Y-%m-%d").date()
+                except ValueError:
+                    flash("Please enter a valid application deadline date.", "danger")
+                    return render_template("company/job_form.html", form=request.form)
+
+            job = Job(
+                company_id=company.id,
+                title=title,
+                location=location,
+                ctc=ctc,
+                description=description,
+                min_cgpa=min_cgpa_val,
+                application_deadline=deadline_value,
+                status="pending",
+            )
+            db.session.add(job)
+            db.session.commit()
+
+            flash("Placement drive created successfully.", "success")
+            return redirect(url_for("company_dashboard"))
+
+        return render_template("company/job_form.html", form=request.form)
+
+    @app.route("/company/jobs/<int:job_id>/edit", methods=["GET", "POST"])
+    @login_required
+    @role_required("company")
+    def edit_job(job_id: int):
+        user = get_current_user()
+        company = user.company_profile
+        job = Job.query.filter_by(id=job_id, company_id=company.id).first_or_404()
+
+        if request.method == "POST":
+            title = request.form.get("title", "").strip()
+            location = request.form.get("location", "").strip()
+            ctc = request.form.get("ctc", "").strip()
+            description = request.form.get("description", "").strip()
+            min_cgpa = request.form.get("min_cgpa", "").strip()
+            deadline_raw = request.form.get("application_deadline", "").strip()
+
+            if not title:
+                flash("Job title is required.", "danger")
+                return render_template("company/job_edit.html", job=job, form=request.form)
+            if not ctc:
+                flash("CTC is required.", "danger")
+                return render_template("company/job_edit.html", job=job, form=request.form)
+
+            try:
+                min_cgpa_val = float(min_cgpa)
+            except ValueError:
+                flash("Please enter a valid minimum CGPA.", "danger")
+                return render_template("company/job_edit.html", job=job, form=request.form)
+
+            deadline_value = None
+            if deadline_raw:
+                try:
+                    deadline_value = datetime.strptime(deadline_raw, "%Y-%m-%d").date()
+                except ValueError:
+                    flash("Please enter a valid application deadline date.", "danger")
+                    return render_template("company/job_edit.html", job=job, form=request.form)
+
+            job.title = title
+            job.location = location or None
+            job.ctc = ctc
+            job.description = description or None
+            job.min_cgpa = min_cgpa_val
+            job.application_deadline = deadline_value
+            db.session.commit()
+
+            flash("Placement drive updated successfully.", "success")
+            return redirect(url_for("company_dashboard"))
+
+        return render_template("company/job_edit.html", job=job, form=request.form)
+
+    @app.route("/company/jobs/<int:job_id>/close", methods=["POST"])
+    @login_required
+    @role_required("company")
+    def close_job(job_id: int):
+        user = get_current_user()
+        company = user.company_profile
+        job = Job.query.filter_by(id=job_id, company_id=company.id).first_or_404()
+        job.status = "closed"
+        db.session.commit()
+        flash("Placement drive closed.", "info")
+        return redirect(url_for("company_dashboard"))
+
+    @app.route("/company/jobs/<int:job_id>/delete", methods=["POST"])
+    @login_required
+    @role_required("company")
+    def delete_job(job_id: int):
+        user = get_current_user()
+        company = user.company_profile
+        job = Job.query.filter_by(id=job_id, company_id=company.id).first_or_404()
+        if job.applications.count() > 0:
+            flash("You cannot delete a drive that already has applications. You can close it instead.", "warning")
+            return redirect(url_for("company_dashboard"))
+        db.session.delete(job)
+        db.session.commit()
+        flash("Placement drive deleted.", "info")
+        return redirect(url_for("company_dashboard"))
+
+    @app.route("/company/jobs/<int:job_id>/applications")
+    @login_required
+    @role_required("company")
+    def company_job_applications(job_id: int):
+        user = get_current_user()
+        company = user.company_profile
+        job = Job.query.filter_by(id=job_id, company_id=company.id).first_or_404()
+        applications = job.applications.order_by(Application.applied_at.desc()).all()
+        return render_template(
+            "company/applications.html",
+            job=job,
+            applications=applications,
+        )
+
+    @app.route("/company/applications/<int:application_id>/status", methods=["POST"])
+    @login_required
+    @role_required("company")
+    def update_application_status(application_id: int):
+        user = get_current_user()
+        company = user.company_profile
+        application = Application.query.get_or_404(application_id)
+        if application.job.company_id != company.id:
+            abort(403)
+        status = request.form.get("status", "").strip().lower()
+        allowed = ("applied", "shortlisted", "interview", "selected", "rejected", "placed")
+        if status not in allowed:
+            flash("Invalid status.", "danger")
+            return redirect(url_for("company_job_applications", job_id=application.job_id))
+        application.status = status
+
+        # If status is 'placed', create a Placement record
+        if status == "placed":
+            if not application.placement:
+                placement = Placement(application_id=application.id)
+                db.session.add(placement)
+
+        db.session.commit()
+        flash(f"Application status updated to {status}.", "success")
+        return redirect(url_for("company_job_applications", job_id=application.job_id))
+
+    @app.route("/company/students/<int:student_id>")
+    @login_required
+    @role_required("company")
+    def view_student_profile(student_id: int):
+        student = StudentProfile.query.get_or_404(student_id)
+        return render_template("company/student_profile.html", student=student)
+
 
 app = create_app()
 

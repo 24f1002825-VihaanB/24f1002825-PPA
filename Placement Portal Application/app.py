@@ -99,6 +99,17 @@ def role_required(*roles):
 
 
 def register_routes(app: Flask) -> None:
+    @app.before_request
+    def check_blacklisted_company():
+        user = get_current_user()
+        if user and user.role == "company":
+            company = user.company_profile
+            if company and company.blacklisted:
+                if request.endpoint not in ("index", "login", "logout", "static"):
+                    session.clear()
+                    flash("Your company account has been blacklisted. Please contact the placement cell.", "danger")
+                    return redirect(url_for("index"))
+
     @app.route("/")
     def index():
         return render_template("index.html")
@@ -874,6 +885,10 @@ def register_routes(app: Flask) -> None:
         user = get_current_user()
         student = user.student_profile
         job = Job.query.get_or_404(job_id)
+
+        if student.blacklisted:
+            flash("Your account has been restricted. You cannot apply to jobs.", "danger")
+            return redirect(url_for("list_jobs"))
 
         if job.status != "approved":
             flash("This job is not open for applications.", "warning")
